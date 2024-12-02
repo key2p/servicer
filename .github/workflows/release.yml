@@ -1,6 +1,7 @@
 name: release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "*"
@@ -37,11 +38,14 @@ jobs:
           path: "target/${{ matrix.platform.target }}/release/servicer"
       - name: Rename build artifact
         run: |
-          apt update && apt install -y upx 
+          sudo -E apt update -y
+          sudo -E apt install -y upx || true
           upx target/${{ matrix.platform.target }}/release/servicer || true
           cp target/${{ matrix.platform.target }}/release/servicer target/servicer-${{ matrix.platform.target }}
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ matrix.platform.target }}
+          name: ${{ matrix.platform.target }} for ${{ github.ref_name }}
           files: "target/servicer-${{ matrix.platform.target }}"
