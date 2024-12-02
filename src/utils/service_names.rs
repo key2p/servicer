@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 /// * `full_service_name`
 ///
 pub fn get_short_service_name(full_service_name: &str) -> String {
-    let file_extension = format!(".ser.service");
+    let file_extension = ".ser.service".to_string();
 
     full_service_name
         .trim_end_matches(file_extension.as_str())
@@ -36,7 +36,7 @@ pub fn get_full_service_name(short_name: &str) -> String {
 /// * `name` - The service name
 ///
 pub fn is_full_name(name: &str) -> bool {
-    let service_extension = format!(".ser.service");
+    let service_extension = ".ser.service".to_string();
 
     name.ends_with(&service_extension)
 }

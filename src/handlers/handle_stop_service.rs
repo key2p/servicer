@@ -14,10 +14,10 @@ use crate::{
 /// * `name`- Name of the service to stop
 ///
 pub async fn handle_stop_service(
-    name: &String,
+    name: &str,
     show_status: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let full_service_name = get_full_service_name(&name);
+    let full_service_name = get_full_service_name(name);
 
     let connection = zbus::Connection::system().await?;
     let manager_proxy = ManagerProxy::new(&connection).await?;

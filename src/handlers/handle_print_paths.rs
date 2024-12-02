@@ -21,7 +21,7 @@ pub struct PathStatus {
 ///
 /// * `name` - The service name
 ///
-pub async fn handle_print_paths(name: &String) -> Result<(), Box<dyn std::error::Error>> {
+pub fn handle_print_paths(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut path_details = Vec::<PathStatus>::new();
 
     let full_service_name = get_full_service_name(name);

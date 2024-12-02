@@ -12,18 +12,18 @@ use super::{
 /// * `name`- Name of the service to stop
 ///
 pub async fn handle_delete_service(
-    name: &String,
+    name: &str,
     show_status: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    handle_stop_service(&name, false).await?;
-    handle_disable_service(&name, false).await?;
+    handle_stop_service(name, false).await?;
+    handle_disable_service(name, false).await?;
 
-    let full_service_name = get_full_service_name(&name);
+    let full_service_name = get_full_service_name(name);
     let service_file_path = get_service_file_path(&full_service_name);
     let service_file_path_str = service_file_path.to_str().unwrap().to_string();
 
     // Delete .service file
-    tokio::fs::remove_file(&service_file_path).await?;
+    std::fs::remove_file(&service_file_path)?;
 
     println!("Deleted {service_file_path_str}");
 

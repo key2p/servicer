@@ -16,10 +16,10 @@ jobs:
       matrix:
         platform:
           - release_for: amd64
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
             name: servicer-amd64-linux
           - release_for: arm64
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
             name: servicer-aarch64-linux
 
     steps:
@@ -37,6 +37,8 @@ jobs:
           path: "target/${{ matrix.platform.target }}/release/servicer"
       - name: Rename build artifact
         run: |
+          apt update && apt install -y upx 
+          upx target/${{ matrix.platform.target }}/release/servicer || true
           cp target/${{ matrix.platform.target }}/release/servicer target/servicer-${{ matrix.platform.target }}
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v1

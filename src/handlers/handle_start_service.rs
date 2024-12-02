@@ -15,13 +15,13 @@ use super::handle_show_status::handle_show_status;
 /// * `name` - The service name
 ///
 pub async fn handle_start_service(
-    name: &String,
+    name: &str,
     show_status: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = zbus::Connection::system().await?;
     let manager_proxy = ManagerProxy::new(&connection).await?;
 
-    let full_service_name = get_full_service_name(&name);
+    let full_service_name = get_full_service_name(name);
 
     let active_state = get_active_state(&connection, &full_service_name).await;
 

@@ -7,9 +7,7 @@ use crate::{
 };
 use bytesize::ByteSize;
 use cli_table::{Table, WithTitle};
-use futures;
 use std::path::Path;
-use tokio::fs;
 use zbus::Connection;
 
 #[derive(Table, Clone)]
@@ -37,8 +35,8 @@ pub struct ServiceStatus {
 
 /// Display the status of your services
 pub async fn handle_show_status() -> Result<(), Box<dyn std::error::Error>> {
-    let page_size = get_page_size().await?;
-    let services = get_servicer_services().await?;
+    let page_kb_size = get_page_size()?;
+    let services = get_servicer_services()?;
 
     let connection = Connection::system().await?;
 
@@ -56,9 +54,9 @@ pub async fn handle_show_status() -> Result<(), Box<dyn std::error::Error>> {
             active_process_exists = true;
 
             let pid = get_main_pid(&connection, &full_service_name).await?;
-            let memory = get_memory_usage(pid, page_size as u64).await?;
+            let memory = get_memory_usage(pid, page_kb_size as u64)?;
 
-            (pid, 0f32, ByteSize(memory).to_string())
+            (pid, 0f32, ByteSize::kib(memory).to_string())
         } else {
             (0, 0f32, "0".to_string())
         };
@@ -77,19 +75,19 @@ pub async fn handle_show_status() -> Result<(), Box<dyn std::error::Error>> {
     // Source- https://github.com/dalance/procs/blob/ba703e98cd44be46ba32e084f1474d81b9a7f660/src/columns/usage_cpu.rs#L36C57-L36C83
 
     // Sleep duration in ms
-    const SLEEP_DURATION: u32 = 100;
+    const SLEEP_DURATION: u32 = 150;
 
     if active_process_exists {
         // We only need to sleep once with this method
-        let initial_cpu_times = get_cpu_times(service_statuses.clone()).await?;
+        let initial_cpu_times = get_cpu_times(service_statuses.clone());
         tokio::time::sleep(tokio::time::Duration::from_millis(SLEEP_DURATION as u64)).await;
-        let final_cpu_times = get_cpu_times(service_statuses.clone()).await?;
+        let final_cpu_times = get_cpu_times(service_statuses.clone());
 
         let tps = clock_ticks_per_second();
 
         for i in 0..service_statuses.len() {
-            let initial_time = initial_cpu_times.get(i).unwrap().clone();
-            let final_time = final_cpu_times.get(i).unwrap().clone();
+            let initial_time = *initial_cpu_times.get(i).unwrap();
+            let final_time = *final_cpu_times.get(i).unwrap();
             let usage_ms = (final_time - initial_time) * 1000 / tps;
             let cpu_usage = usage_ms as f32 * 100.0 / SLEEP_DURATION as f32;
 
@@ -104,15 +102,15 @@ pub async fn handle_show_status() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Get systemd services having an extension `.ser.service`. We only monitor services created by this tool
-async fn get_servicer_services() -> Result<Vec<String>, std::io::Error> {
+fn get_servicer_services() -> Result<Vec<String>, std::io::Error> {
     let folder_path = "/etc/systemd/system/";
 
     let folder_path = Path::new(folder_path);
 
     let mut files = Vec::<String>::new();
-    let mut dir = fs::read_dir(folder_path).await?;
+    let dir = std::fs::read_dir(folder_path)?;
 
-    while let Some(entry) = dir.next_entry().await? {
+    for entry in dir.flatten() {
         let path = entry.path();
 
         if path.is_file() {
@@ -137,17 +135,15 @@ pub fn clock_ticks_per_second() -> u64 {
 ///
 /// * `service_statuses`
 ///
-pub async fn get_cpu_times(
-    service_statuses: Vec<ServiceStatus>,
-) -> Result<Vec<u64>, tokio::task::JoinError> {
-    futures::future::try_join_all(service_statuses.into_iter().map(|status| {
-        tokio::spawn(async move {
+pub fn get_cpu_times(service_statuses: Vec<ServiceStatus>) -> Vec<u64> {
+    service_statuses
+        .iter()
+        .map(|status| {
             if status.active == "active" {
-                get_cpu_time(status.pid).await.unwrap_or(0)
+                get_cpu_time(status.pid).unwrap_or(0)
             } else {
                 0
             }
         })
-    }))
-    .await
+        .collect()
 }

@@ -1,18 +1,16 @@
-use tokio::{
-    fs::File,
-    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
-};
+use std::io::BufRead;
 
 /// Gets the kernel page size of the system in KB
-pub async fn get_page_size() -> Result<usize, Box<dyn std::error::Error>> {
+pub fn get_page_size() -> Result<usize, Box<dyn std::error::Error>> {
     let path = "/proc/self/smaps";
-    let file = File::open(path).await?;
-    let reader = BufReader::new(file);
+    let file = std::fs::File::open(path)?;
+    let reader = std::io::BufReader::new(file);
 
     let mut kernel_page_size: Option<usize> = None;
 
-    let mut lines = reader.lines();
-    while let Some(line) = lines.next_line().await? {
+    let lines = reader.lines();
+    for line in lines {
+        let line = line?;
         if line.starts_with("KernelPageSize:") {
             if let Some(size_str) = line.split_whitespace().nth(1) {
                 if let Ok(size) = size_str.parse::<usize>() {
@@ -35,13 +33,11 @@ pub async fn get_page_size() -> Result<usize, Box<dyn std::error::Error>> {
 /// * `pid` - Process ID
 /// * `page_size` - The page size in KB
 ///
-pub async fn get_memory_usage(pid: u32, page_size_kb: u64) -> Result<u64, std::io::Error> {
+pub fn get_memory_usage(pid: u32, page_size_kb: u64) -> Result<u64, std::io::Error> {
     let path = format!("/proc/{}/statm", pid);
-    let mut file = File::open(&path).await?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).await?;
+    let contents = std::fs::read_to_string(&path)?;
 
-    let values: Vec<&str> = contents.trim().split_whitespace().collect();
+    let values: Vec<&str> = contents.split_whitespace().collect();
     if values.len() < 2 {
         panic!("Invalid format of /proc/PID/statm file");
     }
@@ -58,9 +54,9 @@ pub async fn get_memory_usage(pid: u32, page_size_kb: u64) -> Result<u64, std::i
 ///
 /// * `pid`
 ///
-pub async fn get_cpu_time(pid: u32) -> Result<u64, Box<dyn std::error::Error>> {
+pub fn get_cpu_time(pid: u32) -> Result<u64, Box<dyn std::error::Error>> {
     let stat_path = format!("/proc/{}/stat", pid);
-    let stat_content = tokio::fs::read_to_string(stat_path).await?;
+    let stat_content = std::fs::read_to_string(stat_path)?;
     let stat_fields: Vec<&str> = stat_content.split_whitespace().collect();
 
     // The 14th field in /proc/<pid>/stat represents utime (user mode CPU time) in clock ticks

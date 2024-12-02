@@ -1,4 +1,4 @@
-# servicer: Simplify Service Management on systemd
+# servicer: Simplify Service Management on systemd [bugfix version]
 
 [![Crates.io](https://img.shields.io/crates/v/servicer?style=flat-square)](https://crates.io/crates/servicer)
 [![Crates.io](https://img.shields.io/crates/d/servicer?style=flat-square)](https://crates.io/crates/servicer)

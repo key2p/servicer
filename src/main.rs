@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 mod handlers;
 mod utils;
 
-use handlers::handle_create_service::handle_create_service;
+use handlers::handle_create_service::{handle_create_service, ServiceCreateParams};
 use handlers::handle_delete_service::handle_delete_service;
 use handlers::handle_disable_service::handle_disable_service;
 use handlers::handle_edit_service_file::handle_edit_service_file;
@@ -163,7 +163,7 @@ pub enum Commands {
     },
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
@@ -178,17 +178,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             env_vars,
             internal_args,
         } => {
-            handle_create_service(
+            let params = ServiceCreateParams {
                 path,
-                name,
+                custom_name: name,
                 start,
                 enable,
                 auto_restart,
-                interpreter,
+                custom_interpreter: interpreter,
                 env_vars,
                 internal_args,
-            )
-            .await?
+            };
+
+            handle_create_service(params).await?
         }
 
         Commands::Start { name } => handle_start_service(&name, true).await?,
@@ -205,15 +206,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             name,
             lines,
             follow,
-        } => handle_show_logs(&name, lines, follow).await?,
+        } => handle_show_logs(&name, lines, follow)?,
 
-        Commands::Edit { name, editor } => handle_edit_service_file(&name, &editor).await?,
+        Commands::Edit { name, editor } => handle_edit_service_file(&name, &editor)?,
 
         Commands::Reload { name } => handle_reload_service(&name, true).await?,
 
-        Commands::Cat { name } => handle_print_service_file(&name).await?,
+        Commands::Cat { name } => handle_print_service_file(&name)?,
 
-        Commands::Which { name } => handle_print_paths(&name).await?,
+        Commands::Which { name } => handle_print_paths(&name)?,
 
         Commands::Delete { name } => handle_delete_service(&name, true).await?,
 

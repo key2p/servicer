@@ -24,20 +24,20 @@ use super::{
 /// * `new_name` - New name
 ///
 pub async fn handle_rename_service(
-    name: &String,
-    new_name: &String,
+    name: &str,
+    new_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Create new service file
-    let full_service_name = get_full_service_name(&name);
+    let full_service_name = get_full_service_name(name);
     let service_file_path = get_service_file_path(&full_service_name);
     let service_file_path_str = service_file_path.to_str().unwrap().to_string();
 
-    let new_full_service_name = get_full_service_name(&new_name);
+    let new_full_service_name = get_full_service_name(new_name);
     let new_service_file_path = get_service_file_path(&new_full_service_name);
     let new_service_file_path_str = new_service_file_path.to_str().unwrap().to_string();
 
     // Copy .service file
-    tokio::fs::copy(service_file_path_str, new_service_file_path_str).await?;
+    std::fs::copy(service_file_path_str, new_service_file_path_str)?;
 
     // Read active and unit state of current service
     let connection = Connection::system().await?;

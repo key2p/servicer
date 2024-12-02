@@ -9,10 +9,10 @@ use crate::utils::{service_names::get_full_service_name, systemd::ManagerProxy};
 /// * `name`- Name of the service to disable
 ///
 pub async fn handle_disable_service(
-    name: &String,
+    name: &str,
     show_status: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let full_service_name = get_full_service_name(&name);
+    let full_service_name = get_full_service_name(name);
 
     let connection = zbus::Connection::system().await?;
     let manager_proxy = ManagerProxy::new(&connection).await?;

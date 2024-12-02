@@ -1,7 +1,5 @@
 use crate::utils::service_names::get_full_service_name;
-use std::process::Stdio;
-use tokio::io::{self, AsyncBufReadExt};
-use tokio::process::Command;
+use std::{io::BufRead, process::Stdio};
 
 /// Show logs for a service
 ///
@@ -12,14 +10,14 @@ use tokio::process::Command;
 /// * `name`- Name of the service in short form (hello-world)
 /// * `follow` - Print logs
 ///
-pub async fn handle_show_logs(
-    name: &String,
+pub fn handle_show_logs(
+    name: &str,
     lines: u32,
     follow: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let full_name = get_full_service_name(&name);
+    let full_name = get_full_service_name(name);
 
-    let mut command = Command::new("journalctl");
+    let mut command = std::process::Command::new("journalctl");
 
     // Set the journal unit name with -u option
     command.arg("-u").arg(full_name);
@@ -42,16 +40,16 @@ pub async fn handle_show_logs(
     let stdout = child.stdout.take().unwrap();
 
     // Create a stream to read lines from the stdout
-    let reader = io::BufReader::new(stdout).lines();
+    let reader = std::io::BufReader::new(stdout).lines();
 
     // Process the lines and proxy the output to the user
-    tokio::pin!(reader);
-    while let Some(line) = reader.next_line().await? {
+    for line in reader {
+        let line = line?;
         println!("{}", line); // You can send the line to the user in your actual code
     }
 
     // Wait for the child process to complete and get its exit status
-    child.wait().await?;
+    child.wait()?;
 
     Ok(())
 }

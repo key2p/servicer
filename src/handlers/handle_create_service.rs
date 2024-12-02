@@ -1,6 +1,5 @@
 use indoc::formatdoc;
 use std::{env, path::PathBuf};
-use tokio::fs;
 
 use crate::{
     handlers::{
@@ -13,6 +12,17 @@ use crate::{
     },
 };
 
+pub struct ServiceCreateParams {
+    pub custom_name: Option<String>,
+    pub path: PathBuf,
+    pub start: bool,
+    pub enable: bool,
+    pub auto_restart: bool,
+    pub custom_interpreter: Option<String>,
+    pub env_vars: Option<String>,
+    pub internal_args: Vec<String>,
+}
+
 /// Creates a new systemd service file.
 ///
 /// # Arguments
@@ -24,28 +34,25 @@ use crate::{
 /// * `internal_args`
 ///
 pub async fn handle_create_service(
-    path: PathBuf,
-    custom_name: Option<String>,
-    start: bool,
-    enable: bool,
-    auto_restart: bool,
-    custom_interpreter: Option<String>,
-    env_vars: Option<String>,
-    internal_args: Vec<String>,
+    create_params: ServiceCreateParams,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if !path.is_file() {
-        return Err(format!("{} is not a file", path.to_str().unwrap()).into());
+    if !create_params.path.is_file() {
+        return Err(format!("{} is not a file", create_params.path.to_str().unwrap()).into());
     }
 
     // The file name including extension, eg. index.js
-    let file_name = path
+    let file_name = create_params
+        .path
         .file_name()
         .expect("Failed to get file name")
         .to_str()
         .expect("Failed to stringify file name")
         .to_string();
+    let file_path = create_params.path.to_string_lossy();
 
-    let service_name = custom_name.unwrap_or_else(|| file_name.to_string());
+    let service_name = create_params
+        .custom_name
+        .unwrap_or_else(|| file_name.to_string());
     let full_service_name = get_full_service_name(&service_name);
 
     // Create file if it doesn't exist
@@ -60,19 +67,18 @@ pub async fn handle_create_service(
             service_name
         );
     } else {
-        let interpreter = match custom_interpreter {
-            Some(_) => custom_interpreter,
-            None => get_interpreter(path.extension()),
+        let interpreter = match create_params.custom_interpreter {
+            Some(_) => create_params.custom_interpreter,
+            None => get_interpreter(create_params.path.extension()),
         };
 
         // Handle case `ser create index.js` where relative path lacks ./
-        let mut parent_path = path.parent().unwrap();
+        let mut parent_path = create_params.path.parent().unwrap();
         let current_dir = env::current_dir().unwrap();
         if parent_path.to_str() == Some("") {
             parent_path = &current_dir;
         }
-        let working_directory = fs::canonicalize(parent_path)
-            .await
+        let working_directory = std::fs::canonicalize(parent_path)
             .unwrap()
             .to_str()
             .unwrap()
@@ -81,21 +87,21 @@ pub async fn handle_create_service(
         create_service_file(
             &service_file_path_str,
             &working_directory,
-            auto_restart,
+            create_params.auto_restart,
             interpreter,
-            env_vars,
-            internal_args,
-            &file_name,
+            create_params.env_vars,
+            create_params.internal_args,
+            &file_path,
         )
         .await
         .unwrap();
 
         println!("Service {service_name} created at {service_file_path_str}. To start run `ser start {service_name}`");
 
-        if start {
+        if create_params.start {
             handle_start_service(&service_name, false).await.unwrap();
         }
-        if enable {
+        if create_params.enable {
             handle_enable_service(&service_name, false).await.unwrap();
         }
 
@@ -139,7 +145,7 @@ fn get_interpreter(extension: Option<&std::ffi::OsStr>) -> Option<String> {
 /// * `working_directory` - Working directory of the file to execute
 /// * `auto_restart` - Auto restart the service on error
 /// * `interpreter` - The executable used to run the app, eg. `node` or `python3`. The executable
-/// must be visible from path for a sudo user. Note that the app itself does not run in sudo.
+///   must be visible from path for a sudo user. Note that the app itself does not run in sudo.
 /// * `env_vars` - Environment variables
 /// * `internal_args` - Args passed to the file
 /// * `file_name` - Name of the file to run
@@ -159,7 +165,6 @@ async fn create_service_file(
     let mut exec_start = match interpreter {
         Some(interpreter) => {
             let interpreter_path = find_binary_path(&interpreter, &user)
-                .await
                 .unwrap()
                 .trim_end_matches("\n")
                 .to_string();
@@ -187,9 +192,8 @@ async fn create_service_file(
                 .collect();
 
             // Join the formatted pairs with newlines
-            let result = formatted_pairs.join("\n");
 
-            result
+            formatted_pairs.join("\n")
         }
         None => "".to_string(),
     };
@@ -218,5 +222,5 @@ async fn create_service_file(
     };
 
     // Create the service file and write the content
-    fs::write(service_file_path, service_body.as_bytes()).await
+    std::fs::write(service_file_path, service_body.as_bytes())
 }
